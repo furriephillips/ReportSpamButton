@@ -1,0 +1,45 @@
+/* ReportSpamButton
+    Requires: Custom Buttons AddOn
+        https://addons.mozilla.org/en-us/thunderbird/addon/custom-buttons/
+    Code Inspiration: CustomButtons Forum Post
+        http://custombuttons.sourceforge.net/forum/viewtopic.php?f=6&t=1148&p=5993&hilit=forward#p5993
+*/
+
+/* ReportSpamTo
+    Alter "To:" Address(es) to suit your needs...
+    SpamCop Report Address - See: http://www.spamcop.net/anonsignup.shtml
+*/
+var ReportSpamTo = "SpamCop <submit.<your_key_here>@spam.spamcop.net>";
+
+// Forward message as attachment, using compose window
+var wm = Components.classes["@mozilla.org/appshell/window-mediator;1"].
+    getService(Components.interfaces.nsIWindowMediator);
+var msgHdr = gFolderDisplay.selectedMessage;
+var Listener = {
+    onWindowTitleChange: function () {},
+    onCloseWindow: function () {},
+    onOpenWindow: function (aWindow) {
+        wm.removeListener(this);
+        this.compose = aWindow.docShell.
+            QueryInterface(Components.interfaces.nsIInterfaceRequestor).
+            getInterface(Components.interfaces.nsIDOMWindow);
+        this.compose.addEventListener("compose-window-init", this, true);
+    },
+    handleEvent: function (event) {
+        event.currentTarget.removeEventListener(event.type, this, true);
+        event.currentTarget.gMsgCompose.RegisterStateListener(Listener);
+    },
+    NotifyComposeFieldsReady: function () {},
+        NotifyComposeBodyReady: function () {
+            this.compose.gMsgCompose.UnregisterStateListener(this);
+            this.compose.window.setTimeout(function () {
+                this.AddRecipient("addr_to", ReportSpamTo);
+                // Uncomment the line below, if required...
+                //this.AddRecipient("addr_cc", addressCc);
+                this.awDeleteRow(this.awGetMaxRecipients());
+                this.goDoCommand("cmd_sendNow");
+            }, 0);
+        }
+}
+wm.addListener(Listener);
+goDoCommand("cmd_forwardAttachment");
